@@ -1,0 +1,1250 @@
+https://remarkable-cheesecake-838bad.netlify.app/
+
+CODE:
+<!DOCTYPE html>
+<!-- saved from url=(0054)file:///C:/Users/lvars/Downloads/floodsense-app_1.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>FloodSense</title>
+<link href="./FloodSense_files/css2" rel="stylesheet">
+<link rel="stylesheet" href="./FloodSense_files/leaflet.css">
+<script src="./FloodSense_files/leaflet.js.download"></script>
+<style>
+:root {
+  --bg: #06080f;
+  --panel: #0c1220;
+  --card: #101828;
+  --border: #1a2a40;
+  --accent: #29b6f6;
+  --safe-bg: #06080f;
+  --safe-glow: #29b6f6;
+  --moderate-bg: #0f0e04;
+  --moderate-glow: #f5c518;
+  --high-bg: #100804;
+  --high-glow: #ff7043;
+  --critical-bg: #130408;
+  --critical-glow: #ff1744;
+  --text: #cde4f5;
+  --dim: #3a6080;
+  --mono: 'Share Tech Mono', monospace;
+  --display: 'Rajdhani', sans-serif;
+  
+  /* Dynamic theme vars */
+  --theme-bg: var(--safe-bg);
+  --theme-glow: var(--safe-glow);
+  --theme-alert: #29b6f6;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--theme-bg);
+  color: var(--text);
+  font-family: var(--display);
+  transition: background 1.5s ease;
+  position: relative;
+}
+
+/* Animated background scanlines */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.08) 3px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events:none;
+  z-index:1;
+}
+
+/* Dynamic ambient glow - changes with risk */
+.ambient {
+  position: fixed;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+  transition: background 1.5s ease, top 2s ease, left 2s ease;
+  background: var(--theme-glow);
+  top: -200px; left: -100px;
+}
+
+.ambient2 {
+  position: fixed;
+  width: 400px; height: 400px;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+  transition: background 1.5s ease;
+  background: var(--theme-glow);
+  bottom: -100px; right: -100px;
+}
+
+/* ========== APP SHELL ========== */
+.app {
+  display: grid;
+  grid-template-rows: 64px 1fr;
+  height: 100vh;
+  position: relative;
+  z-index: 2;
+}
+
+/* ========== HEADER ========== */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: rgba(12,18,32,0.95);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  position: relative;
+  z-index: 100;
+  transition: border-color 0.8s ease;
+}
+
+.header-left { display: flex; align-items: center; gap: 12px; }
+
+/* App Icon */
+.app-icon {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  position: relative;
+  background: linear-gradient(135deg, #0d2137, #0a3050);
+  border: 1.5px solid var(--theme-glow);
+  transition: border-color 0.8s ease, box-shadow 0.8s ease;
+  box-shadow: 0 0 12px rgba(41,182,246,0.3);
+  flex-shrink: 0;
+}
+
+.app-icon::after {
+  content:'';
+  position:absolute; inset:-3px;
+  border-radius:14px;
+  border: 1px solid var(--theme-glow);
+  opacity: 0.3;
+  transition: opacity 0.8s ease, border-color 0.8s ease;
+  animation: icon-pulse 2s ease-in-out infinite;
+}
+
+@keyframes icon-pulse {
+  0%,100%{ opacity:0.2; transform:scale(1); }
+  50%{ opacity:0.5; transform:scale(1.05); }
+}
+
+.brand h1 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #fff;
+  line-height: 1;
+}
+
+.brand p {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  margin-top: 1px;
+}
+
+/* Alert banner in header */
+.alert-banner {
+  flex: 1;
+  margin: 0 20px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  background: rgba(41,182,246,0.08);
+  border: 1px solid rgba(41,182,246,0.2);
+  color: var(--accent);
+  transition: all 0.8s ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.alert-banner .alert-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--theme-glow);
+  flex-shrink: 0;
+  animation: blink 1s infinite;
+  transition: background 0.8s ease;
+}
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.1} }
+
+/* Header right */
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.live-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,23,68,0.1);
+  border: 1px solid rgba(255,23,68,0.3);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #ff1744;
+}
+
+.live-dot { width:6px; height:6px; border-radius:50%; background:#ff1744; animation:blink 1s infinite; }
+
+.clock {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--dim);
+  min-width: 70px;
+  text-align: right;
+}
+
+/* ========== MAIN LAYOUT ========== */
+.main-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr 280px;
+  overflow: hidden;
+}
+
+/* ========== LEFT PANEL ========== */
+.left-panel {
+  background: rgba(12,18,32,0.9);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-header::before {
+  content:'';
+  width: 2px; height: 10px;
+  background: var(--theme-glow);
+  border-radius: 1px;
+  transition: background 0.8s ease;
+}
+
+/* Water Level Gauge */
+.gauge-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.gauge-wrap {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.gauge-bar-outer {
+  width: 28px;
+  height: 120px;
+  background: var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--border);
+}
+
+.gauge-bar-inner {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--theme-glow) 0%, rgba(41,182,246,0.3) 100%);
+  transition: height 1s cubic-bezier(.4,0,.2,1), background 1.5s ease;
+  box-shadow: 0 0 10px var(--theme-glow);
+}
+
+/* Ripple on gauge */
+.gauge-bar-outer::after {
+  content:'';
+  position:absolute;
+  top: calc(100% - var(--gauge-pct, 46%) - 2px);
+  left:0; right:0;
+  height: 4px;
+  background: rgba(255,255,255,0.3);
+  border-radius: 2px;
+  animation: ripple-wave 2s ease-in-out infinite;
+}
+
+@keyframes ripple-wave {
+  0%,100%{ opacity:0.3; transform:scaleX(0.8); }
+  50%{ opacity:0.7; transform:scaleX(1); }
+}
+
+.gauge-info { flex:1; }
+
+.gauge-number {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  transition: color 0.8s ease;
+}
+
+.gauge-number span { font-size: 16px; color: var(--dim); font-weight: 400; }
+
+.gauge-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+.gauge-status {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  display: inline-block;
+  transition: all 0.8s ease;
+}
+
+input[type=range] {
+  width: 100%;
+  margin-top: 12px;
+  accent-color: var(--theme-glow);
+  cursor: pointer;
+}
+
+/* Zone report cards */
+.reports-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reports-list::-webkit-scrollbar { width: 3px; }
+.reports-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+.report-card {
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  animation: cardIn 0.4s ease both;
+}
+
+@keyframes cardIn {
+  from { opacity:0; transform:translateY(10px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+.report-card::before {
+  content:'';
+  position:absolute;
+  left:0; top:0; bottom:0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+  transition: background 0.8s ease;
+}
+
+.report-card.CRITICAL::before { background: #ff1744; }
+.report-card.HIGH::before { background: #ff7043; }
+.report-card.MODERATE::before { background: #f5c518; }
+.report-card.LOW::before { background: #00e676; }
+
+.report-card:hover { transform: translateX(3px); border-color: var(--theme-glow); }
+
+.card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+
+.risk-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+}
+
+.CRITICAL .risk-tag { background:rgba(255,23,68,0.15); color:#ff1744; }
+.HIGH .risk-tag { background:rgba(255,112,67,0.15); color:#ff7043; }
+.MODERATE .risk-tag { background:rgba(245,197,24,0.15); color:#f5c518; }
+.LOW .risk-tag { background:rgba(0,230,118,0.15); color:#00e676; }
+
+.card-score {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.card-msg {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.card-coord {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+}
+
+/* ========== MAP ========== */
+.map-section {
+  position: relative;
+  overflow: hidden;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* Map overlay top-left */
+.map-top-bar {
+  position: absolute;
+  top: 12px; left: 12px;
+  z-index: 500;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.map-chip {
+  background: rgba(12,18,32,0.92);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(10px);
+}
+
+.map-chip .dot { width:8px; height:8px; border-radius:50%; }
+
+/* ========== RIGHT PANEL ========== */
+.right-panel {
+  background: rgba(12,18,32,0.9);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Overall risk meter */
+.risk-meter {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+
+.risk-circle {
+  width: 110px; height: 110px;
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 3px solid var(--theme-glow);
+  transition: border-color 0.8s ease, box-shadow 0.8s ease;
+  box-shadow: 0 0 20px rgba(41,182,246,0.2), inset 0 0 20px rgba(41,182,246,0.05);
+}
+
+.risk-circle::before {
+  content:'';
+  position:absolute; inset:-8px;
+  border-radius:50%;
+  border: 1px dashed var(--theme-glow);
+  opacity: 0.3;
+  animation: spin 20s linear infinite;
+  transition: border-color 0.8s ease;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.risk-circle-icon { font-size: 28px; }
+.risk-circle-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--dim);
+  margin-top: 2px;
+}
+
+.risk-level-big {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  transition: color 0.8s ease;
+}
+
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-box {
+  background: var(--card);
+  padding: 12px;
+  text-align: center;
+}
+
+.stat-box .num {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--mono);
+  line-height: 1;
+}
+
+.stat-box .lbl {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--dim);
+  margin-top: 3px;
+  font-family: var(--mono);
+}
+
+.stat-box.crit .num { color: #ff1744; }
+.stat-box.high .num { color: #ff7043; }
+.stat-box.mod .num { color: #f5c518; }
+.stat-box.low .num { color: #00e676; }
+
+/* Activity log */
+.activity-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.activity-log::-webkit-scrollbar { width: 3px; }
+.activity-log::-webkit-scrollbar-thumb { background: var(--border); }
+
+.log-entry {
+  display: flex;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(26,42,64,0.5);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  animation: logIn 0.3s ease both;
+}
+
+@keyframes logIn { from{opacity:0;} to{opacity:1;} }
+
+.log-time { color: var(--dim); flex-shrink: 0; }
+.log-msg { color: var(--text); line-height: 1.4; }
+
+.log-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+/* Bottom control strip */
+.control-strip {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+}
+
+.ctrl-btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.ctrl-btn:hover {
+  background: var(--border);
+  border-color: var(--theme-glow);
+  color: #fff;
+}
+
+/* RISK THEMES */
+body.risk-LOW    { --theme-bg: #050d14; --theme-glow: #29b6f6; --theme-alert: #29b6f6; }
+body.risk-MODERATE { --theme-bg: #0d0c03; --theme-glow: #f5c518; --theme-alert: #f5c518; }
+body.risk-HIGH   { --theme-bg: #0e0704; --theme-glow: #ff7043; --theme-alert: #ff7043; }
+body.risk-CRITICAL { --theme-bg: #110306; --theme-glow: #ff1744; --theme-alert: #ff1744; }
+
+/* Critical mode - whole body flash */
+body.risk-CRITICAL .app-icon {
+  animation: critical-flash 1s ease-in-out infinite;
+}
+
+@keyframes critical-flash {
+  0%,100%{ box-shadow: 0 0 12px rgba(255,23,68,0.4); }
+  50%{ box-shadow: 0 0 28px rgba(255,23,68,0.9); }
+}
+
+/* Custom Leaflet popup */
+.leaflet-popup-content-wrapper {
+  background: #0c1220 !important;
+  border: 1px solid #1a2a40 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6) !important;
+  color: #cde4f5 !important;
+}
+.leaflet-popup-tip { background: #0c1220 !important; }
+.leaflet-popup-content { margin: 12px 16px !important; }
+</style>
+</head>
+<body class="risk-CRITICAL">
+
+<div class="ambient" id="amb1"></div>
+<div class="ambient2" id="amb2"></div>
+
+<div class="app">
+
+  <!-- ===== HEADER ===== -->
+  <header>
+    <div class="header-left">
+      <div class="app-icon" id="appIcon" style="border-color: rgb(255, 23, 68); box-shadow: rgba(255, 23, 68, 0.333) 0px 0px 18px;">🚨</div>
+      <div class="brand">
+        <h1>FLOODSENSE</h1>
+        <p>DISASTER RISK INTELLIGENCE SYSTEM</p>
+      </div>
+    </div>
+
+    <div class="alert-banner" id="alertBanner" style="background: rgba(255, 23, 68, 0.12); border-color: rgba(255, 23, 68, 0.3); color: rgb(255, 23, 68);">
+      <div class="alert-dot"></div>
+      <span id="alertText">🚨 CRITICAL ALERT — IMMEDIATE EVACUATION REQUIRED — ALL UNITS RESPOND</span>
+    </div>
+
+    <div class="header-right">
+      <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+      <div class="clock" id="clock">05:06:43</div>
+    </div>
+  </header>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main-grid">
+
+    <!-- LEFT PANEL -->
+    <div class="left-panel">
+      <div class="panel-header">SENSOR &amp; ZONE DATA</div>
+
+      <!-- Water gauge -->
+      <div class="gauge-section">
+        <div class="gauge-wrap">
+          <div class="gauge-bar-outer">
+            <div class="gauge-bar-inner" id="gaugeFill" style="height: 97.1158%;"></div>
+          </div>
+          <div class="gauge-info">
+            <div class="gauge-number" id="gaugeNum">14.6<span>m</span></div>
+            <div class="gauge-label">WATER LEVEL</div>
+            <div class="gauge-status" id="gaugeStatus" style="background: rgba(255, 23, 68, 0.12); color: rgb(255, 23, 68); border: 1px solid rgba(255, 23, 68, 0.3);">EXTREME</div>
+          </div>
+        </div>
+        <input type="range" min="0" max="15" step="0.5" value="7" id="sensorSlider" oninput="updateSensor(this.value)">
+        <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:3px;">
+          <span>0m SAFE</span><span>15m EXTREME</span>
+        </div>
+      </div>
+
+      <div class="panel-header">ZONE REPORTS</div>
+
+      <!-- Zone cards -->
+      <div class="reports-list" id="reportsList"><div class="report-card CRITICAL" style="animation-delay: 0s;">
+      <div class="card-top">
+        <span class="risk-tag">CRITICAL</span>
+        <span class="card-score">7</span>
+      </div>
+      <div class="card-msg">"Water entering my house help!"</div>
+      <div class="card-coord">📍 17.3850, 78.4867</div>
+    </div><div class="report-card CRITICAL" style="animation-delay: 0.1s;">
+      <div class="card-top">
+        <span class="risk-tag">CRITICAL</span>
+        <span class="card-score">7</span>
+      </div>
+      <div class="card-msg">"Flood rising near main road urgent!"</div>
+      <div class="card-coord">📍 17.3865, 78.4875</div>
+    </div><div class="report-card HIGH" style="animation-delay: 0.2s;">
+      <div class="card-top">
+        <span class="risk-tag">HIGH</span>
+        <span class="card-score">5</span>
+      </div>
+      <div class="card-msg">"Minor water logging here"</div>
+      <div class="card-coord">📍 17.3880, 78.4850</div>
+    </div></div>
+    </div>
+
+    <!-- MAP -->
+    <div class="map-section">
+      <div id="map" class="leaflet-container leaflet-touch leaflet-retina leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom" tabindex="0" style="position: relative;"><div class="leaflet-pane leaflet-map-pane" style="transform: translate3d(0px, 0px, 0px);"><div class="leaflet-pane leaflet-tile-pane"><div class="leaflet-layer " style="z-index: 1; opacity: 1;"><div class="leaflet-tile-container leaflet-zoom-animated" style="z-index: 17; transform: translate3d(0px, -3px, 0px) scale(2);"></div><div class="leaflet-tile-container leaflet-zoom-animated" style="z-index: 18; transform: translate3d(-486px, -95px, 0px) scale(1);"><img alt="" src="./FloodSense_files/29553@2x.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(840px, 350px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29552@2x.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(840px, 94px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29553@2x(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(584px, 350px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29553@2x(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1096px, 350px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29554@2x.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(840px, 606px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29552@2x(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(584px, 94px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29552@2x(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1096px, 94px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29554@2x(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(584px, 606px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29554@2x(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1096px, 606px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29553@2x(3).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(328px, 350px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29553@2x(4).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1352px, 350px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29552@2x(3).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(328px, 94px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29552@2x(4).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1352px, 94px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29554@2x(3).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(328px, 606px, 0px); opacity: 1;"><img alt="" src="./FloodSense_files/29554@2x(4).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(1352px, 606px, 0px); opacity: 1;"></div></div></div><div class="leaflet-pane leaflet-overlay-pane"></div><div class="leaflet-pane leaflet-shadow-pane"></div><div class="leaflet-pane leaflet-marker-pane"><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" style="margin-left: -18px; margin-top: -18px; width: 36px; height: 36px; transform: translate3d(371px, 369px, 0px); z-index: 369;">
+      <div style="position:relative; width:36px; height:36px;">
+        <div style="
+          position:absolute; inset:-6px; border-radius:50%;
+          background:#ff1744;
+          opacity:0.2;
+          animation:marker-pulse 1.5s ease-in-out infinite;
+        "></div>
+        <div style="
+          width:36px; height:36px; border-radius:50%;
+          background: radial-gradient(circle at 35% 35%, #ff1744cc, #ff174444);
+          border: 2.5px solid #ff1744;
+          box-shadow: 0 0 14px #ff174499;
+          display:flex; align-items:center; justify-content:center;
+          font-size:14px; font-weight:700;
+          color:#fff;
+          font-family:&#39;Rajdhani&#39;,sans-serif;
+          position:relative;
+        ">7</div>
+      </div>
+      <style>@keyframes marker-pulse{0%,100%{transform:scale(1);opacity:0.2}50%{transform:scale(1.6);opacity:0}}</style>
+    </div><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" style="margin-left: -18px; margin-top: -18px; width: 36px; height: 36px; transform: translate3d(409px, 296px, 0px); z-index: 296;">
+      <div style="position:relative; width:36px; height:36px;">
+        <div style="
+          position:absolute; inset:-6px; border-radius:50%;
+          background:#ff1744;
+          opacity:0.2;
+          animation:marker-pulse 1.5s ease-in-out infinite;
+        "></div>
+        <div style="
+          width:36px; height:36px; border-radius:50%;
+          background: radial-gradient(circle at 35% 35%, #ff1744cc, #ff174444);
+          border: 2.5px solid #ff1744;
+          box-shadow: 0 0 14px #ff174499;
+          display:flex; align-items:center; justify-content:center;
+          font-size:14px; font-weight:700;
+          color:#fff;
+          font-family:&#39;Rajdhani&#39;,sans-serif;
+          position:relative;
+        ">7</div>
+      </div>
+      <style>@keyframes marker-pulse{0%,100%{transform:scale(1);opacity:0.2}50%{transform:scale(1.6);opacity:0}}</style>
+    </div><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" style="margin-left: -18px; margin-top: -18px; width: 36px; height: 36px; transform: translate3d(292px, 223px, 0px); z-index: 223;">
+      <div style="position:relative; width:36px; height:36px;">
+        <div style="
+          position:absolute; inset:-6px; border-radius:50%;
+          background:#ff7043;
+          opacity:0.2;
+          animation:marker-pulse 1.5s ease-in-out infinite;
+        "></div>
+        <div style="
+          width:36px; height:36px; border-radius:50%;
+          background: radial-gradient(circle at 35% 35%, #ff7043cc, #ff704344);
+          border: 2.5px solid #ff7043;
+          box-shadow: 0 0 14px #ff704399;
+          display:flex; align-items:center; justify-content:center;
+          font-size:14px; font-weight:700;
+          color:#fff;
+          font-family:&#39;Rajdhani&#39;,sans-serif;
+          position:relative;
+        ">5</div>
+      </div>
+      <style>@keyframes marker-pulse{0%,100%{transform:scale(1);opacity:0.2}50%{transform:scale(1.6);opacity:0}}</style>
+    </div></div><div class="leaflet-pane leaflet-tooltip-pane"></div><div class="leaflet-pane leaflet-popup-pane"></div><div class="leaflet-proxy leaflet-zoom-animated" style="transform: translate3d(1.20465e+07px, 7.56565e+06px, 0px) scale(32768);"></div></div><div class="leaflet-control-container"><div class="leaflet-top leaflet-left"></div><div class="leaflet-top leaflet-right"></div><div class="leaflet-bottom leaflet-left"></div><div class="leaflet-bottom leaflet-right"><div class="leaflet-control-zoom leaflet-bar leaflet-control"><a class="leaflet-control-zoom-in" href="file:///C:/Users/lvars/Downloads/floodsense-app_1.html#" title="Zoom in" role="button" aria-label="Zoom in" aria-disabled="false"><span aria-hidden="true">+</span></a><a class="leaflet-control-zoom-out" href="file:///C:/Users/lvars/Downloads/floodsense-app_1.html#" title="Zoom out" role="button" aria-label="Zoom out" aria-disabled="false"><span aria-hidden="true">−</span></a></div></div></div></div>
+      <div class="map-top-bar">
+        <div class="map-chip"><div class="dot" style="background:#ff1744"></div>CRITICAL</div>
+        <div class="map-chip"><div class="dot" style="background:#ff7043"></div>HIGH</div>
+        <div class="map-chip"><div class="dot" style="background:#f5c518"></div>MODERATE</div>
+        <div class="map-chip"><div class="dot" style="background:#00e676"></div>LOW</div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+      <div class="panel-header">OVERALL RISK STATUS</div>
+
+      <!-- Risk circle -->
+      <div class="risk-meter">
+        <div class="risk-circle" id="riskCircle" style="border-color: rgb(255, 23, 68); box-shadow: rgba(255, 23, 68, 0.2) 0px 0px 30px, rgba(255, 23, 68, 0.067) 0px 0px 20px inset;">
+          <div class="risk-circle-icon" id="riskIcon">🚨</div>
+          <div class="risk-level-big" id="riskLevelBig" style="color: rgb(255, 23, 68);">CRITICAL</div>
+          <div class="risk-circle-label">RISK LEVEL</div>
+        </div>
+      </div>
+
+      <!-- Stats grid -->
+      <div class="stats-grid">
+        <div class="stat-box crit"><div class="num" id="sCrit">2</div><div class="lbl">CRITICAL</div></div>
+        <div class="stat-box high"><div class="num" id="sHigh">1</div><div class="lbl">HIGH</div></div>
+        <div class="stat-box mod"><div class="num" id="sMod">0</div><div class="lbl">MODERATE</div></div>
+        <div class="stat-box low"><div class="num" id="sLow">0</div><div class="lbl">LOW</div></div>
+      </div>
+
+      <div class="panel-header">ACTIVITY LOG</div>
+      <div class="activity-log" id="activityLog">
+    <div class="log-entry" style="animation-delay:0s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:06:39</span>
+      <span class="log-msg">Sensor: 14.567364608819101m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.05s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:06:31</span>
+      <span class="log-msg">Sensor: 13.977861926218122m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.1s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:06:23</span>
+      <span class="log-msg">Sensor: 14.350789617972938m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.15000000000000002s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:06:15</span>
+      <span class="log-msg">Sensor: 14.479682702617119m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.2s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:06:08</span>
+      <span class="log-msg">Sensor: 13.954667813617782m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.25s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:06:00</span>
+      <span class="log-msg">Sensor: 13.861756530080884m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.30000000000000004s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:05:52</span>
+      <span class="log-msg">Sensor: 13.454657344275931m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.35000000000000003s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:05:44</span>
+      <span class="log-msg">Sensor: 13.785218812462274m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.4s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:05:36</span>
+      <span class="log-msg">Sensor: 14.438618615179198m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.45s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:05:27</span>
+      <span class="log-msg">Sensor: 15m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.5s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:05:19</span>
+      <span class="log-msg">Sensor: 15m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.55s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:05:11</span>
+      <span class="log-msg">Sensor: 15m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.6000000000000001s">
+      <div class="log-dot" style="background:#00e676"></div>
+      <span class="log-time">05:05:04</span>
+      <span class="log-msg">Data exported successfully</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.65s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:05:03</span>
+      <span class="log-msg">Sensor: 14.384442022870171m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.7000000000000001s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:04:57</span>
+      <span class="log-msg">Sensor: 15m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.75s">
+      <div class="log-dot" style="background:#ff1744"></div>
+      <span class="log-time">05:04:56</span>
+      <span class="log-msg">Sensor: 14.5m | Zones: C2 H1 M0 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.8s">
+      <div class="log-dot" style="background:#ff7043"></div>
+      <span class="log-time">05:04:55</span>
+      <span class="log-msg">Sensor: 7.611259341744856m | Zones: C0 H2 M1 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.8500000000000001s">
+      <div class="log-dot" style="background:#ff7043"></div>
+      <span class="log-time">05:04:53</span>
+      <span class="log-msg">Sensor: 8m | Zones: C0 H2 M1 L0</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.9s">
+      <div class="log-dot" style="background:#f5c518"></div>
+      <span class="log-time">05:04:47</span>
+      <span class="log-msg">Sensor: 1.0972273528194574m | Zones: C0 H0 M2 L1</span>
+    </div>
+  
+    <div class="log-entry" style="animation-delay:0.9500000000000001s">
+      <div class="log-dot" style="background:#f5c518"></div>
+      <span class="log-time">05:04:39</span>
+      <span class="log-msg">Sensor: 1.2861875481718106m | Zones: C0 H0 M2 L1</span>
+    </div>
+  </div>
+
+      <div class="control-strip">
+        <button class="ctrl-btn" onclick="simulateRandom()">⟳ SIMULATE</button>
+        <button class="ctrl-btn" onclick="exportData()">↓ EXPORT</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// =====================
+// DATA & LOGIC
+// =====================
+const socialData = [
+  { text: "Water entering my house help!", lat: 17.3850, lon: 78.4867, id: 1 },
+  { text: "Flood rising near main road urgent!", lat: 17.3865, lon: 78.4875, id: 2 },
+  { text: "Minor water logging here", lat: 17.3880, lon: 78.4850, id: 3 }
+];
+
+let waterLevel = 7;
+let markers = [];
+let activityEntries = [];
+
+const RISK_CONFIG = {
+  CRITICAL: { color: '#ff1744', icon: '🚨', bg: 'rgba(255,23,68,0.12)', border: 'rgba(255,23,68,0.3)', bodyClass: 'risk-CRITICAL' },
+  HIGH:     { color: '#ff7043', icon: '⚠️', bg: 'rgba(255,112,67,0.12)', border: 'rgba(255,112,67,0.3)', bodyClass: 'risk-HIGH' },
+  MODERATE: { color: '#f5c518', icon: '🔶', bg: 'rgba(245,197,24,0.12)', border: 'rgba(245,197,24,0.3)', bodyClass: 'risk-MODERATE' },
+  LOW:      { color: '#00e676', icon: '✅', bg: 'rgba(0,230,118,0.08)', border: 'rgba(0,230,118,0.2)', bodyClass: 'risk-LOW' }
+};
+
+const ALERT_MSGS = {
+  CRITICAL: '🚨 CRITICAL ALERT — IMMEDIATE EVACUATION REQUIRED — ALL UNITS RESPOND',
+  HIGH:     '⚠️  HIGH RISK DETECTED — EMERGENCY SERVICES ON STANDBY — EVACUATE LOW AREAS',
+  MODERATE: '🔶 MODERATE FLOODING — STAY ALERT — AVOID FLOOD-PRONE ZONES',
+  LOW:      '✅ SYSTEM NOMINAL — ALL ZONES MONITORED — WATER LEVELS STABLE'
+};
+
+const GAUGE_STATUS = {
+  CRITICAL: 'EXTREME', HIGH: 'DANGER', MODERATE: 'ELEVATED', LOW: 'NORMAL'
+};
+
+function cleanText(t) { return t.toLowerCase().replace(/[^a-zA-Z\s]/g, ''); }
+
+function calcTextRisk(t) {
+  const words = ["help","trapped","drowning","urgent","emergency"];
+  return words.reduce((s,w) => s + (t.includes(w) ? 2 : 0), 0);
+}
+
+function calcSensorRisk(lvl) {
+  return lvl > 8 ? 5 : lvl > 5 ? 3 : 1;
+}
+
+function classifyZone(score) {
+  return score >= 7 ? 'CRITICAL' : score >= 4 ? 'HIGH' : score >= 2 ? 'MODERATE' : 'LOW';
+}
+
+function getOverallRisk(zones) {
+  if (zones.includes('CRITICAL')) return 'CRITICAL';
+  if (zones.includes('HIGH')) return 'HIGH';
+  if (zones.includes('MODERATE')) return 'MODERATE';
+  return 'LOW';
+}
+
+// =====================
+// MAP SETUP
+// =====================
+const map = L.map('map', { zoomControl: false, attributionControl: false })
+  .setView([17.3865, 78.4867], 15);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+function makeMarkerIcon(color, zone, score) {
+  const isPulsing = zone === 'CRITICAL' || zone === 'HIGH';
+  return L.divIcon({
+    className: '',
+    html: `
+      <div style="position:relative; width:36px; height:36px;">
+        ${isPulsing ? `<div style="
+          position:absolute; inset:-6px; border-radius:50%;
+          background:${color};
+          opacity:0.2;
+          animation:marker-pulse 1.5s ease-in-out infinite;
+        "></div>` : ''}
+        <div style="
+          width:36px; height:36px; border-radius:50%;
+          background: radial-gradient(circle at 35% 35%, ${color}cc, ${color}44);
+          border: 2.5px solid ${color};
+          box-shadow: 0 0 14px ${color}99;
+          display:flex; align-items:center; justify-content:center;
+          font-size:14px; font-weight:700;
+          color:#fff;
+          font-family:'Rajdhani',sans-serif;
+          position:relative;
+        ">${score}</div>
+      </div>
+      <style>@keyframes marker-pulse{0%,100%{transform:scale(1);opacity:0.2}50%{transform:scale(1.6);opacity:0}}</style>
+    `,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -20]
+  });
+}
+
+// =====================
+// MAIN RENDER
+// =====================
+function runAnalysis() {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+
+  const sensorScore = calcSensorRisk(waterLevel);
+  const zones = [];
+  const counts = { CRITICAL: 0, HIGH: 0, MODERATE: 0, LOW: 0 };
+
+  const cardContainer = document.getElementById('reportsList');
+  cardContainer.innerHTML = '';
+
+  socialData.forEach((post, i) => {
+    const cleaned = cleanText(post.text);
+    const textScore = calcTextRisk(cleaned);
+    const total = textScore + sensorScore;
+    const zone = classifyZone(total);
+    const cfg = RISK_CONFIG[zone];
+    zones.push(zone);
+    counts[zone]++;
+
+    // Marker
+    const marker = L.marker([post.lat, post.lon], {
+      icon: makeMarkerIcon(cfg.color, zone, total)
+    }).addTo(map);
+
+    marker.bindPopup(`
+      <div style="font-family:'Rajdhani',sans-serif;">
+        <div style="font-size:14px;font-weight:700;color:${cfg.color};letter-spacing:2px;margin-bottom:6px;">${cfg.icon} ${zone}</div>
+        <div style="font-size:13px;margin-bottom:4px;">"${post.text}"</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#3a6080;margin-bottom:3px;">
+          SCORE: ${total} &nbsp;|&nbsp; SENSOR: ${waterLevel}m
+        </div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#3a6080;">
+          📍 ${post.lat.toFixed(4)}, ${post.lon.toFixed(4)}
+        </div>
+      </div>
+    `);
+    markers.push(marker);
+
+    // Zone card
+    const card = document.createElement('div');
+    card.className = `report-card ${zone}`;
+    card.style.animationDelay = `${i * 0.1}s`;
+    card.innerHTML = `
+      <div class="card-top">
+        <span class="risk-tag">${zone}</span>
+        <span class="card-score">${total}</span>
+      </div>
+      <div class="card-msg">"${post.text}"</div>
+      <div class="card-coord">📍 ${post.lat.toFixed(4)}, ${post.lon.toFixed(4)}</div>
+    `;
+    card.onclick = () => {
+      map.flyTo([post.lat, post.lon], 17, { duration: 1.2 });
+      setTimeout(() => marker.openPopup(), 1300);
+    };
+    cardContainer.appendChild(card);
+  });
+
+  // Stats
+  document.getElementById('sCrit').textContent = counts.CRITICAL;
+  document.getElementById('sHigh').textContent = counts.HIGH;
+  document.getElementById('sMod').textContent = counts.MODERATE;
+  document.getElementById('sLow').textContent = counts.LOW;
+
+  // Overall risk
+  const overall = getOverallRisk(zones);
+  applyRiskTheme(overall);
+
+  // Log
+  addLog(overall, `Sensor: ${waterLevel}m | Zones: C${counts.CRITICAL} H${counts.HIGH} M${counts.MODERATE} L${counts.LOW}`);
+}
+
+// =====================
+// DYNAMIC THEME
+// =====================
+function applyRiskTheme(risk) {
+  const cfg = RISK_CONFIG[risk];
+
+  // Body class for CSS variable switching
+  document.body.className = cfg.bodyClass;
+
+  // Alert banner
+  const banner = document.getElementById('alertBanner');
+  banner.style.background = cfg.bg;
+  banner.style.borderColor = cfg.border;
+  banner.style.color = cfg.color;
+  document.getElementById('alertText').textContent = ALERT_MSGS[risk];
+
+  // App icon
+  const icon = document.getElementById('appIcon');
+  icon.style.borderColor = cfg.color;
+  icon.style.boxShadow = `0 0 18px ${cfg.color}55`;
+  icon.textContent = cfg.icon === '✅' ? '🌊' : cfg.icon;
+
+  // Risk circle
+  const circle = document.getElementById('riskCircle');
+  circle.style.borderColor = cfg.color;
+  circle.style.boxShadow = `0 0 30px ${cfg.color}33, inset 0 0 20px ${cfg.color}11`;
+  document.getElementById('riskIcon').textContent =
+    risk === 'CRITICAL' ? '🚨' : risk === 'HIGH' ? '⚠️' : risk === 'MODERATE' ? '🔶' : '💧';
+  document.getElementById('riskLevelBig').textContent = risk;
+  document.getElementById('riskLevelBig').style.color = cfg.color;
+
+  // Gauge status
+  const gs = document.getElementById('gaugeStatus');
+  gs.textContent = GAUGE_STATUS[risk];
+  gs.style.background = cfg.bg;
+  gs.style.color = cfg.color;
+  gs.style.border = `1px solid ${cfg.border}`;
+}
+
+// =====================
+// SENSOR UPDATE
+// =====================
+function updateSensor(val) {
+  waterLevel = parseFloat(val);
+  document.getElementById('gaugeNum').innerHTML = `${waterLevel.toFixed(1)}<span>m</span>`;
+  const pct = (waterLevel / 15) * 100;
+  document.getElementById('gaugeFill').style.height = pct + '%';
+  runAnalysis();
+}
+
+// =====================
+// ACTIVITY LOG
+// =====================
+function addLog(risk, msg) {
+  const now = new Date();
+  const time = now.toTimeString().slice(0,8);
+  const cfg = RISK_CONFIG[risk];
+  const entry = { time, msg, color: cfg.color, risk };
+  activityEntries.unshift(entry);
+  if (activityEntries.length > 20) activityEntries.pop();
+  renderLog();
+}
+
+function renderLog() {
+  const log = document.getElementById('activityLog');
+  log.innerHTML = activityEntries.map((e,i) => `
+    <div class="log-entry" style="animation-delay:${i*0.05}s">
+      <div class="log-dot" style="background:${e.color}"></div>
+      <span class="log-time">${e.time}</span>
+      <span class="log-msg">${e.msg}</span>
+    </div>
+  `).join('');
+}
+
+// =====================
+// SIMULATE
+// =====================
+function simulateRandom() {
+  const val = (Math.random() * 15).toFixed(1);
+  document.getElementById('sensorSlider').value = val;
+  updateSensor(val);
+}
+
+// =====================
+// EXPORT
+// =====================
+function exportData() {
+  const data = socialData.map(post => {
+    const total = calcTextRisk(cleanText(post.text)) + calcSensorRisk(waterLevel);
+    return { ...post, zone: classifyZone(total), score: total, sensorLevel: waterLevel };
+  });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `floodsense_export_${Date.now()}.json`;
+  a.click();
+  addLog('LOW', 'Data exported successfully');
+}
+
+// =====================
+// CLOCK
+// =====================
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toTimeString().slice(0,8);
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// =====================
+// AUTO SIMULATE (every 8s)
+// =====================
+setInterval(() => {
+  // Gentle drift simulation
+  const drift = (Math.random() - 0.5) * 1.5;
+  const newVal = Math.max(0, Math.min(15, waterLevel + drift));
+  document.getElementById('sensorSlider').value = newVal;
+  updateSensor(newVal);
+}, 8000);
+
+// =====================
+// INIT
+// =====================
+runAnalysis();
+</script>
+
+
+</body></html>
